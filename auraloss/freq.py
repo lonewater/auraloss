@@ -1,3 +1,4 @@
+import scipy
 import torch
 import numpy as np
 import librosa.filters
@@ -528,3 +529,147 @@ class SumAndDifferenceSTFTLoss(torch.nn.Module):
             return loss
         elif self.output == "full":
             return loss, sum_loss, diff_loss
+
+class PerceptuallyWeightedComplexLoss(torch.nn.Module):
+    """Perceptually weighted STFT difference in the complex domain
+    
+    No associated publication yet...
+    
+    Args:
+        fft_size (int, optional): FFT size in samples. Default: 1024
+        hop_size (int, optional): Hop size of the FFT in samples. Default: 256
+        win_length (int, optional): Length of the FFT analysis window. Default: 1024
+        window (str, optional): Window to apply before FFT, options include:
+           ['hann_window', 'bartlett_window', 'blackman_window', 'hamming_window', 'kaiser_window']
+            Default: 'hann_window'
+        w_p (str, optional): Perceptual weighting curve applied, options include:
+           ['r468', 'aw', 'cw', None]
+            Default: 'r468'
+        sample_rate (int, optional): Sample rate. Default: 48000
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            'none': no reduction will be applied,
+            'mean': the sum of the output will be divided by the number of elements in the output,
+            'sum': the output will be summed.
+            Default: 'mean'
+
+    Returns:
+        loss
+    """
+
+    def __init__(
+        self,
+        fft_size=1024,
+        hop_size=256,
+        win_length=1024,
+        window="hann_window",
+        w_p="r468",
+        sample_rate=48000,
+        reduction="mean",
+    ):
+        super(PerceptuallyWeightedComplexLoss, self).__init__()
+        self.fft_size = fft_size
+        self.hop_size = hop_size
+        self.win_length = win_length
+        self.window = getattr(torch, window)(win_length)
+        self.wp = w_p
+        self.sample_rate = sample_rate
+        self.reduction = reduction
+        self.fftUpperRef = self.fftMax()
+
+    def fftMax(self):
+        sine = np.sin(2 * np.pi * range(1,self.fft_size) * (1000/self.sample_rate))
+        win = getattr(torch, self.window)(self.fft_size)
+
+        S = torch.stft(sine * win,
+            self.fft_size,
+            self.hop_size,
+            self.win_length,
+            self.window,
+            return_complex=True,
+        )
+        return max(S * np.conj(S)) # defined max FFT magnitude from which to scale the qTh
+
+    def stft(self, x):
+        """Perform STFT.
+        Args:
+            x (Tensor): Input signal tensor (B, T).
+
+        Returns:
+            Tensor: x_mag, x_phs
+                Magnitude and phase spectra (B, fft_size // 2 + 1, frames).
+        """
+        x_stft = torch.stft(
+            x,
+            self.fft_size,
+            self.hop_size,
+            self.win_length,
+            self.window,
+            return_complex=True,
+        )
+        x_mag = torch.sqrt(
+            torch.clamp((x_stft.real ** 2) + (x_stft.imag ** 2), min=self.eps)
+        )
+        x_phs = torch.angle(x_stft)
+        return x_mag, x_phs
+
+    def r468(self, f):
+        """ Calculte ITU-R 468 weighting curve
+        largely following https://github.com/cinelexi/itu-r-468-weighting/blob/master/itu_r_468_weighting/constants.py
+        
+        Args:
+            f (array): Bin frequency values (Hz) of given Fourier transform length (fft_size // 2 + 1)
+
+        Returns:
+            Array: STFT weighting curve (fft_size // 2 + 1)
+        """
+        FACTOR_GAIN_1KHZ = 10^(18.246265068039158 / 20); # using predefined gain offset according to standard
+
+        f1 = f
+        f2 = f1**2
+        f3 = f1**3
+        f4 = f1**4
+        f5 = f1**5
+        f6 = f1**6
+
+        h1 = ((-4.7373389813783836e-24 * f6) + (2.0438283336061252e-15 * f4) - (1.363894795463638e-07 * f2) + 1)
+        h2 = ((1.3066122574128241e-19 * f5) - (2.1181508875186556e-11 * f3) + (0.0005559488023498643 * f1))
+
+        return (0.0001246332637532143 * f1) / np.sqrt(h1**2 + h2**2) * FACTOR_GAIN_1KHZ
+
+    def aw(self, f):
+        return #TODO NEED TO ADD
+
+    def cw(self, f):
+        return #TODO NEED TO ADD
+
+    def forward(self, x, y):
+        fbw = (self.sample_rate) / (self.fft_size / 2) # bin width of fft_size at sample_rate
+        fc = np.arrange(fbw, fbw * (self.fft_size / 2 + 1), fbw) # centre frequencies of the bins
+
+        # following threshold in quiet following ISO/IEC11172-3:1995
+        # and more specifically Jon Boley's matlab implementation https://uk.mathworks.com/matlabcentral/fileexchange/47085-psychoacoustic-model-2
+        qTh = 3.64*(fc/1000)**-0.8 - 6.5*np.exp(-0.6*(fc/1000 - 3.3)**2) + 10.^-3*(fc/1000)**4 # threshold in quiet
+
+        ref = 10*np.log10(self.fftUpperRef) - 96 # -96 is the predefined offset
+        ref = 10**(ref/10) # to linear gain
+
+        qTh = 10**(qTh/10) * ref # convert to linear gain and scale by the calculated offset
+
+        #TODO NEED TO ADD OPTION TO CHANGE WEIGHTING FUNCTION OR NOT HAVE ONE
+        w = self.r468(fc) # get weighting curve for given bin centre frequencies
+
+        x_mag, x_phase = self.stft(x)
+        y_mag, y_phase = self.stft(y)
+
+        phase_dif = x_phase - y_phase
+        phase_dif = (phase_dif + np.pi) % (2 * np.pi) - np.pi # wrap difference to [-pi, pi]
+
+        euDif = np.sqrt(y_mag ** 2 + x_mag ** 2 - 2 * y_mag * x_mag * np.cos(phase_dif))
+        euDif = (euDif * w / ((x_mag + y_mag + abs(x_mag - y_mag)) + qTh))**2 # euclidean distance gets weighted by w and normalised by magnitude. qTh works as eps
+
+        melSumWeight = 519 / (140 * (1 + fc / 700) * np.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
+
+        #TODO NEED TO ADD OPTION TO CHANGE BETWEEN MEAN AND SUM
+
+        rowMean = np.mean(euDif * melSumWeight) # mean over bins
+        return np.mean(rowMean) # mean over time steps/frames

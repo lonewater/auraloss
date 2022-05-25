@@ -620,7 +620,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
             f (array): Bin frequency values (Hz) of given Fourier transform length (fft_size // 2 + 1)
 
         Returns:
-            Array: STFT weighting curve (fft_size // 2 + 1)
+            Array: frequency domain weighting curve (fft_size // 2 + 1)
         """
         FACTOR_GAIN_1KHZ = 10^(18.246265068039158 / 20); # using predefined gain offset according to standard
 
@@ -637,13 +637,38 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         return (0.0001246332637532143 * f1) / np.sqrt(h1**2 + h2**2) * FACTOR_GAIN_1KHZ
 
     def aw(self, f):
-        return #TODO NEED TO ADD
+        """ Calculte a weighting curve
+        
+        Args:
+            f (array): Bin frequency values (Hz) of given Fourier transform length (fft_size // 2 + 1)
+
+        Returns:
+            Array: frequency domain weighting curve (fft_size // 2 + 1)
+        """
+        f2 = f**2
+        f4 = f**4
+
+        Ra = (12194**2 * f4) / ((f2 + 20.6**2) * (f2+12194**2) * np.sqrt((f2 + 107.7**2)*(f2+737.9**2)))
+        Ra1000 = (12194**2 * 1000**4) / ((1000**2 + 20.6**2) * np.sqrt((1000**2 + 107.7**2)*(1000**2+737.9**2)) * (1000**2+12194**2))
+        return Ra / Ra1000
 
     def cw(self, f):
-        return #TODO NEED TO ADD
+        """ Calculte c weighting curve
+        
+        Args:
+            f (array): Bin frequency values (Hz) of given Fourier transform length (fft_size // 2 + 1)
+
+        Returns:
+            Array: frequency domain weighting curve (fft_size // 2 + 1)
+        """
+        f2 = f ** 2
+
+        Rc = (12194**2 * f2) / ((f2 + 20.6**2) * (f2+12194**2))
+        Rc1000 = (12194**2 * 1000**2) / ((1000**2 + 20.6**2) * (1000**2+12194**2))
+        return Rc / Rc1000 # c is our filter mag values per bin frequency
 
     def forward(self, x, y):
-        fbw = (self.sample_rate) / (self.fft_size / 2) # bin width of fft_size at sample_rate
+        fbw = (self.sample_rate / 2) / (self.fft_size / 2) # bin width of fft_size at sample_rate
         fc = np.arrange(fbw, fbw * (self.fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
         # following threshold in quiet following ISO/IEC11172-3:1995
@@ -655,8 +680,15 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
 
         qTh = 10**(qTh/10) * ref # convert to linear gain and scale by the calculated offset
 
-        #TODO NEED TO ADD OPTION TO CHANGE WEIGHTING FUNCTION OR NOT HAVE ONE
-        w = self.r468(fc) # get weighting curve for given bin centre frequencies
+        # get weighting curve for given bin centre frequencies
+        if self.wp == "r468":
+            w = self.r468(fc) 
+        elif self.wp == "aw":
+            w = self.aw(fc)
+        elif self.wp == "cw":
+            w = self.cw(fc)
+        elif self.wp == None:
+            w = np.ones_like(fc) # if no weighting desired then all weights are 1
 
         x_mag, x_phase = self.stft(x)
         y_mag, y_phase = self.stft(y)

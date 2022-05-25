@@ -49,6 +49,8 @@ class FIRFilter(torch.nn.Module):
     [Wright & Välimäki, 2019](https://arxiv.org/abs/1911.08922).
 
     A-weighting filter - "aw"
+    C-weighting filter - "cw"
+    ITU-R 468 weighting filter = "r468w"
     First-order highpass - "hp"
     Folded differentiator - "fd"
 
@@ -112,6 +114,60 @@ class FIRFilter(torch.nn.Module):
             if plot:
                 from .plotting import compare_filters
                 compare_filters(b, a, taps, fs=fs)
+        elif filter_type == "cw":
+            fft_size = 2^18 # define a big fft for ideal freq domain representation
+            fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
+            fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
+
+            f2 = fc ** 2
+
+            Rc = (12194**2 * f2) / ((f2 + 20.6**2) * (f2+12194**2))
+            Rc1000 = (12194**2 * 1000**2) / ((1000**2 + 20.6**2) * (1000**2+12194**2))
+            c = Rc / Rc1000 # c is our filter mag values per bin frequency
+            
+            # then we fit to 101 tap FIR filter with least squares
+            taps = scipy.signal.firls(ntaps, fc / fs, c, fs=fs) # fc is normalised
+
+            # now implement this digital FIR filter as a Conv1d layer
+            self.fir = torch.nn.Conv1d(
+                1, 1, kernel_size=ntaps, bias=False, padding=ntaps // 2
+            )
+            self.fir.weight.requires_grad = False
+            self.fir.weight.data = torch.tensor(taps.astype("float32")).view(1, 1, -1)
+
+            # TODO add plotting     
+
+        elif filter_type == "r468w":
+            fft_size = 2^18 # define a big fft for ideal freq domain representation
+            fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
+            fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
+
+            db_gain_1kHz = 18.246265068039158 # predefined gain offset (dB)
+            factor_gain_1kHz = 10**(db_gain_1kHz / 20) # to lin gain
+
+            f1 = fc
+            f2 = f1**2
+            f3 = f1**3
+            f4 = f1**4
+            f5 = f1**5
+            f6 = f1**6
+
+            h1 = ((-4.7373389813783836e-24 * f6) + (2.0438283336061252e-15 * f4) - (1.363894795463638e-07 * f2) + 1)
+            h2 = ((1.3066122574128241e-19 * f5) - (2.1181508875186556e-11 * f3) + (0.0005559488023498643 * f1))
+
+            r468 = (0.0001246332637532143 * f1) / np.sqrt(h1**2 + h2**2) * factor_gain_1kHz # r468 is our filter mag values per bin frequency
+
+            # then we fit to 101 tap FIR filter with least squares
+            taps = scipy.signal.firls(ntaps, fc / fs, r468, fs=fs) # fc is normalised
+
+            # now implement this digital FIR filter as a Conv1d layer
+            self.fir = torch.nn.Conv1d(
+                1, 1, kernel_size=ntaps, bias=False, padding=ntaps // 2
+            )
+            self.fir.weight.requires_grad = False
+            self.fir.weight.data = torch.tensor(taps.astype("float32")).view(1, 1, -1)
+
+            # TODO add plotting   
 
     def forward(self, input, target):
         """Calculate forward propagation.

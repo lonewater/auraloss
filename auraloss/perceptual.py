@@ -115,7 +115,7 @@ class FIRFilter(torch.nn.Module):
                 from .plotting import compare_filters
                 compare_filters(b, a, taps, fs=fs)
         elif filter_type == "cw":
-            fft_size = 2^18 # define a big fft for ideal freq domain representation
+            fft_size = 2**18 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
             fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
@@ -126,7 +126,7 @@ class FIRFilter(torch.nn.Module):
             c = Rc / Rc1000 # c is our filter mag values per bin frequency
             
             # then we fit to 101 tap FIR filter with least squares
-            taps = scipy.signal.firls(ntaps, fc / fs, c, fs=fs) # fc is normalised
+            taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
 
             # now implement this digital FIR filter as a Conv1d layer
             self.fir = torch.nn.Conv1d(
@@ -138,7 +138,7 @@ class FIRFilter(torch.nn.Module):
             # TODO add plotting     
 
         elif filter_type == "r468w":
-            fft_size = 2^18 # define a big fft for ideal freq domain representation
+            fft_size = 2**18 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
             fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
@@ -158,7 +158,7 @@ class FIRFilter(torch.nn.Module):
             r468 = (0.0001246332637532143 * f1) / np.sqrt(h1**2 + h2**2) * factor_gain_1kHz # r468 is our filter mag values per bin frequency
 
             # then we fit to 101 tap FIR filter with least squares
-            taps = scipy.signal.firls(ntaps, fc / fs, r468, fs=fs) # fc is normalised
+            taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
 
             # now implement this digital FIR filter as a Conv1d layer
             self.fir = torch.nn.Conv1d(

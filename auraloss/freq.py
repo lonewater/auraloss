@@ -530,6 +530,7 @@ class SumAndDifferenceSTFTLoss(torch.nn.Module):
         elif self.output == "full":
             return loss, sum_loss, diff_loss
 
+
 class PerceptuallyWeightedComplexLoss(torch.nn.Module):
     """Perceptually weighted STFT difference in the complex domain
     

@@ -115,7 +115,7 @@ class FIRFilter(torch.nn.Module):
                 from .plotting import compare_filters
                 compare_filters(b, a, taps, fs=fs)
         elif filter_type == "cw":
-            fft_size = 2**18 # define a big fft for ideal freq domain representation
+            fft_size = 2**16 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
             fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
@@ -135,10 +135,12 @@ class FIRFilter(torch.nn.Module):
             self.fir.weight.requires_grad = False
             self.fir.weight.data = torch.tensor(taps.astype("float32")).view(1, 1, -1)
 
-            # TODO add plotting     
+            if plot:
+                 from .plotting import compare_freqDom_filters
+                 compare_freqDom_filters(fc, c, taps, fs=fs)
 
         elif filter_type == "r468w":
-            fft_size = 2**18 # define a big fft for ideal freq domain representation
+            fft_size = 2**16 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
             fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
@@ -167,7 +169,9 @@ class FIRFilter(torch.nn.Module):
             self.fir.weight.requires_grad = False
             self.fir.weight.data = torch.tensor(taps.astype("float32")).view(1, 1, -1)
 
-            # TODO add plotting   
+            if plot:
+                from .plotting import compare_freqDom_filters
+                compare_freqDom_filters(fc, r468, taps, fs=fs)  
 
     def forward(self, input, target):
         """Calculate forward propagation.

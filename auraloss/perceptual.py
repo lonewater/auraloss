@@ -117,7 +117,7 @@ class FIRFilter(torch.nn.Module):
         elif filter_type == "cw":
             fft_size = 2**16 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
-            fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
+            fc = np.arange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
             f2 = fc ** 2
 
@@ -142,7 +142,7 @@ class FIRFilter(torch.nn.Module):
         elif filter_type == "r468w":
             fft_size = 2**16 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
-            fc = np.arrange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
+            fc = np.arange(fbw, fbw * (fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
             db_gain_1kHz = 18.246265068039158 # predefined gain offset (dB)
             factor_gain_1kHz = 10**(db_gain_1kHz / 20) # to lin gain

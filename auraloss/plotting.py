@@ -34,7 +34,7 @@ def compare_freqDom_filters(fc, target_mag, fir_b, fs=1):
     plt.plot(fc, target_mag_db, label="Target filter")
     plt.plot(w_fir, h_fir_db, label="FIR approx. filter")
     plt.xscale("log")
-    plt.ylim([-50, 10])
+    plt.ylim([-50, 15])
     plt.xlim([10, 22.05e3])
     plt.xlabel("Freq. (Hz)")
     plt.ylabel("Mag. (dB)")

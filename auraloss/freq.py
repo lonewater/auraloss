@@ -579,9 +579,9 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
 
     def fftMax(self):
         sine = np.sin(2 * np.pi * np.arange(1,self.fft_size) * (1000/self.sample_rate))
-        win = getattr(torch, self.window)(self.fft_size)
+        # win = getattr(torch, self.window)(self.fft_size)
 
-        S = torch.stft(sine * win,
+        S = torch.stft(sine * self.window,
             self.fft_size,
             self.hop_size,
             self.win_length,

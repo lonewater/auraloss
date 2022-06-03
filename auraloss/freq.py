@@ -707,10 +707,10 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         melSumWeight = 519 / (140 * (1 + fc / 700) * np.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
         melSumWeight = melSumWeight.reshape(1, len(melSumWeight), 1) # sure up axes to allow broadcast in next line
 
-        rowMean = np.mean(euDif * melSumWeight) # mean over bins so to compensate for bin count
+        rowMean = np.mean(euDif * melSumWeight, axis=1) # mean over bins so to compensate for bin count
         if self.reduction == "mean":
-            return np.mean(rowMean) # mean over time steps/frames
+            return np.mean(rowMean, axis=1) # mean over time steps/frames
         elif self.reduction == "sum":
-            return np.sum(rowMean) # sum over time steps/frames
+            return np.sum(rowMean, axis=1) # sum over time steps/frames
         elif self.reduction == None:
             return rowMean

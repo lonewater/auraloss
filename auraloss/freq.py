@@ -680,7 +680,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         ref = 10*np.log10(self.fftUpperRef) - 96 # -96 is the predefined offset
         ref = 10**(ref/10) # to linear gain
 
-        qTh = 10**(qTh/10) * ref # convert to linear gain and scale by the calculated offset
+        qTh = 10**(qTh/10) * ref.numpy() # convert to linear gain and scale by the calculated offset
 
         # get weighting curve for given bin centre frequencies
         if self.wp == "r468":

@@ -589,7 +589,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
             self.window,
             return_complex=True,
         )
-        return max(S * np.conj(S)) # defined max FFT magnitude from which to scale the qTh
+        return max(abs(S**2)) # defined max FFT magnitude from which to scale the qTh
 
     def stft(self, x):
         """Perform STFT.

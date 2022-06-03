@@ -692,8 +692,8 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         elif self.wp == None:
             w = np.ones_like(fc) # if no weighting desired then all weights are 1
 
-        x_mag, x_phase = self.stft(x)
-        y_mag, y_phase = self.stft(y)
+        x_mag, x_phase = self.stft(x.view(-1, x.size(-1)))
+        y_mag, y_phase = self.stft(y.view(-1, x.size(-1)))
 
         phase_dif = x_phase - y_phase
         phase_dif = (phase_dif + np.pi) % (2 * np.pi) - np.pi # wrap difference to [-pi, pi]

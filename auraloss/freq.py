@@ -675,7 +675,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
 
         # following threshold in quiet following ISO/IEC11172-3:1995
         # and more specifically Jon Boley's matlab implementation https://uk.mathworks.com/matlabcentral/fileexchange/47085-psychoacoustic-model-2
-        qTh = 3.64*(fc/1000)**-0.8 - 6.5*np.exp(-0.6*(fc/1000 - 3.3)**2) + 10.^-3*(fc/1000)**4 # threshold in quiet
+        qTh = 3.64*(fc/1000)**-0.8 - 6.5*np.exp(-0.6*(fc/1000 - 3.3)**2) + 10**-3*(fc/1000)**4 # threshold in quiet
 
         ref = 10*np.log10(self.fftUpperRef) - 96 # -96 is the predefined offset
         ref = 10**(ref/10) # to linear gain

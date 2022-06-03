@@ -671,7 +671,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
 
     def forward(self, x, y):
         fbw = (self.sample_rate / 2) / (self.fft_size / 2) # bin width of fft_size at sample_rate
-        fc = np.arrange(fbw, fbw * (self.fft_size / 2 + 1), fbw) # centre frequencies of the bins
+        fc = np.arange(fbw, fbw * (self.fft_size / 2 + 1), fbw) # centre frequencies of the bins
 
         # following threshold in quiet following ISO/IEC11172-3:1995
         # and more specifically Jon Boley's matlab implementation https://uk.mathworks.com/matlabcentral/fileexchange/47085-psychoacoustic-model-2

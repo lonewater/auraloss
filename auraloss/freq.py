@@ -609,7 +609,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
             return_complex=True,
         )
         x_mag = torch.sqrt(
-            torch.clamp((x_stft.real ** 2) + (x_stft.imag ** 2))
+            (x_stft.real ** 2) + (x_stft.imag ** 2)
         )
         x_phs = torch.angle(x_stft)
         return x_mag, x_phs

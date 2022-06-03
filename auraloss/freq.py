@@ -700,9 +700,11 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         phase_dif = (phase_dif + np.pi) % (2 * np.pi) - np.pi # wrap difference to [-pi, pi]
 
         euDif = np.sqrt(y_mag ** 2 + x_mag ** 2 - 2 * y_mag * x_mag * np.cos(phase_dif))
+        w = w.reshape(1, len(w), 1) # sure up axes to allow broadcast in next line
         euDif = (euDif * w / ((x_mag + y_mag + abs(x_mag - y_mag)) + qTh))**2 # euclidean distance gets weighted by w and normalised by magnitude. qTh works as eps
 
         melSumWeight = 519 / (140 * (1 + fc / 700) * np.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
+        melSumWeight = melSumWeight.reshape(1, len(melSumWeight), 1) # sure up axes to allow broadcast in next line
 
         rowMean = np.mean(euDif * melSumWeight) # mean over bins so to compensate for bin count
         if self.reduction == "mean":

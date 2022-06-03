@@ -624,7 +624,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         Returns:
             Array: frequency domain weighting curve (fft_size // 2 + 1)
         """
-        FACTOR_GAIN_1KHZ = 10^(18.246265068039158 / 20); # using predefined gain offset according to standard
+        FACTOR_GAIN_1KHZ = 10**(18.246265068039158 / 20); # using predefined gain offset according to standard
 
         f1 = f
         f2 = f1**2

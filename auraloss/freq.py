@@ -708,9 +708,77 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         melSumWeight = melSumWeight.reshape(1, len(melSumWeight), 1) # sure up axes to allow broadcast in next line
 
         rowMean = (euDif * melSumWeight).mean(axis=[1, 2]) # mean over bins and frames
+        #TODO add if reduction is none, return rowMean
         if self.reduction == "mean":
             return rowMean.mean() # mean over time steps/frames
         elif self.reduction == "sum":
             return rowMean.sum() # sum over time steps/frames
         elif self.reduction == None:
             return rowMean
+
+class MultiResolutionPrcptWghtdCmplxLoss(torch.nn.Module):
+    """Multi resolution Perceptuall Weighted Complex loss module.
+
+    Args:
+        fft_sizes (list): List of FFT sizes.
+        hop_sizes (list): List of hop sizes.
+        win_lengths (list): List of window lengths.
+        window (str, optional): Window to apply before FFT, options include:
+            'hann_window', 'bartlett_window', 'blackman_window', 'hamming_window', 'kaiser_window']
+            Default: 'hann_window'
+        w_p (str, optional): Perceptual weighting curve applied, options include:
+           ['r468', 'aw', 'cw', None]
+            Default: 'r468'
+        sample_rate (int, optional): Sample rate.
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            'none': no reduction will be applied,
+            'mean': the sum of the output will be divided by the number of elements in the output,
+            'sum': the output will be summed.
+            Default: 'mean'
+    """
+
+    def __init__(
+        self,
+        fft_sizes=[1024, 2048, 512],
+        hop_sizes=[256, 512, 128],
+        win_lengths=[1024, 2048, 512],
+        window="hann_window",
+        w_p="r468",
+        sample_rate=48000,
+        reduction = "mean",
+        **kwargs,
+    ):
+        super(MultiResolutionPrcptWghtdCmplxLoss, self).__init__()
+        assert len(fft_sizes) == len(hop_sizes) == len(win_lengths)  # must define all
+        self.fft_sizes = fft_sizes
+        self.hop_sizes = hop_sizes
+        self.win_lengths = win_lengths
+        self.w_p = w_p,
+        self.sample_rate = sample_rate
+        self.reduction = reduction
+
+        self.losses = torch.nn.ModuleList()
+        for fs, ss, wl in zip(fft_sizes, hop_sizes, win_lengths):
+            self.losses += [
+                PerceptuallyWeightedComplexLoss(
+                    fs,
+                    ss,
+                    wl,
+                    window,
+                    w_p,
+                    sample_rate,
+                    reduction,
+                    **kwargs,
+                )
+            ]
+
+    def forward(self, x, y):
+        loss = 0.0
+
+        for f in self.losses:
+            tmp_loss = f(x, y)
+            loss += tmp_loss[0]
+
+        mr_loss /= len(self.losses)
+
+        return mr_loss

@@ -777,8 +777,8 @@ class MultiResolutionPrcptWghtdCmplxLoss(torch.nn.Module):
 
         for f in self.losses:
             tmp_loss = f(x, y)
-            loss += tmp_loss[0]
+            loss += tmp_loss
 
-        mr_loss /= len(self.losses)
+        mr_loss = loss / len(self.losses)
 
         return mr_loss

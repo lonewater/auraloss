@@ -702,14 +702,14 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         phase_dif = (phase_dif + torch.pi) % (2 * torch.pi) - torch.pi # wrap difference to [-pi, pi]
 
         # [w, qTh] = [torch.tensor(i) for i in [w, qTh]] # convert weight and threshold in quiet to tensors
-        [w, qTh, x_mag, y_mag, phase_dif] = [torch.double(i) for i in [w, qTh, x_mag, y_mag, phase_dif]] # convert to double to avoid NaN due to precision
+        [w, qTh, x_mag, y_mag, phase_dif] = [i.double() for i in [w, qTh, x_mag, y_mag, phase_dif]] # convert to double to avoid NaN due to precision
         euDif = torch.sqrt(y_mag ** 2 + x_mag ** 2 - 2 * y_mag * x_mag * torch.cos(phase_dif)) # precision added to avoid nan with float32
         w = w.reshape(1, len(w), 1) # sure up axes to allow broadcast
         qTh = qTh.reshape(1, len(qTh), 1) 
         euDif = (euDif * w / ((x_mag + y_mag + (x_mag - y_mag).abs()) + qTh))**2 # euclidean distance gets weighted by w and normalised by magnitude. qTh works as eps
-        euDif = float(euDif) # convert back to float from double
+        euDif = euDif.float() # convert back to float from double
 
-        melSumWeight = 519 / (140 * (1 + fc / 700) * torch.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
+        melSumWeight = 519 / (140 * (1 + fc / 700) * np.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
         melSumWeight = melSumWeight.reshape(1, len(melSumWeight), 1) # sure up axes to allow broadcast
         melSumWeight = torch.tensor(melSumWeight)
 

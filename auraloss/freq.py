@@ -701,7 +701,6 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         phase_dif = x_phase - y_phase
         phase_dif = (phase_dif + torch.pi) % (2 * torch.pi) - torch.pi # wrap difference to [-pi, pi]
 
-        # [w, qTh] = [torch.tensor(i) for i in [w, qTh]] # convert weight and threshold in quiet to tensors
         [w, qTh, x_mag, y_mag, phase_dif] = [i.double() for i in [w, qTh, x_mag, y_mag, phase_dif]] # convert to double to avoid NaN due to precision
         euDif = torch.sqrt(y_mag ** 2 + x_mag ** 2 - 2 * y_mag * x_mag * torch.cos(phase_dif)) # precision added to avoid nan with float32
         w = w.reshape(1, len(w), 1) # sure up axes to allow broadcast

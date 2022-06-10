@@ -567,7 +567,8 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         sample_rate=48000,
         reduction="mean",
     ):
-        super(PerceptuallyWeightedComplexLoss, self).__init__()
+        #super(PerceptuallyWeightedComplexLoss, self).__init__()
+        super().__init__()
         self.fft_size = fft_size
         self.hop_size = hop_size
         self.win_length = win_length
@@ -578,9 +579,9 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         self.fftUpperRef = self.fftMax()
 
     def fftMax(self):
-        sine = np.sin(2 * np.pi * np.arange(0,self.fft_size) * (1000/self.sample_rate))
+        sine = torch.sin(2 * torch.pi * torch.arange(0,self.fft_size) * (1000/self.sample_rate))
 
-        sine = torch.from_numpy(sine)
+        #sine = torch.from_numpy(sine)
 
         S = torch.stft(sine * self.window,
             self.fft_size,
@@ -636,7 +637,7 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         h1 = ((-4.7373389813783836e-24 * f6) + (2.0438283336061252e-15 * f4) - (1.363894795463638e-07 * f2) + 1)
         h2 = ((1.3066122574128241e-19 * f5) - (2.1181508875186556e-11 * f3) + (0.0005559488023498643 * f1))
 
-        return (0.0001246332637532143 * f1) / np.sqrt(h1**2 + h2**2) * FACTOR_GAIN_1KHZ
+        return (0.0001246332637532143 * f1) / torch.sqrt(h1**2 + h2**2) * FACTOR_GAIN_1KHZ
 
     def aw(self, f):
         """ Calculte a weighting curve
@@ -650,8 +651,8 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         f2 = f**2
         f4 = f**4
 
-        Ra = (12194**2 * f4) / ((f2 + 20.6**2) * (f2+12194**2) * np.sqrt((f2 + 107.7**2)*(f2+737.9**2)))
-        Ra1000 = (12194**2 * 1000**4) / ((1000**2 + 20.6**2) * np.sqrt((1000**2 + 107.7**2)*(1000**2+737.9**2)) * (1000**2+12194**2))
+        Ra = (12194**2 * f4) / ((f2 + 20.6**2) * (f2+12194**2) * torch.sqrt((f2 + 107.7**2)*(f2+737.9**2)))
+        Ra1000 = (12194**2 * 1000**4) / ((1000**2 + 20.6**2) * torch.sqrt((1000**2 + 107.7**2)*(1000**2+737.9**2)) * (1000**2+12194**2))
         return Ra / Ra1000
 
     def cw(self, f):
@@ -671,17 +672,17 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
 
     def forward(self, x, y):
         fbw = (self.sample_rate / 2) / (self.fft_size / 2) # bin width of fft_size at sample_rate
-        fc = np.arange(0, fbw * (self.fft_size / 2 + 1), fbw) # centre frequencies of the bins
+        fc = torch.arange(0, fbw * (self.fft_size / 2 + 1), fbw) # centre frequencies of the bins
         fc[0] = 1 # set DC bin centre frequnecy to 1Hz as workaround since qTh curve gives inf for DC as we can't hear DC
 
         # following threshold in quiet following ISO/IEC11172-3:1995
         # and more specifically Jon Boley's matlab implementation https://uk.mathworks.com/matlabcentral/fileexchange/47085-psychoacoustic-model-2
-        qTh = 3.64*(fc/1000)**-0.8 - 6.5*np.exp(-0.6*(fc/1000 - 3.3)**2) + 10**-3*(fc/1000)**4 # threshold in quiet
+        qTh = 3.64*(fc/1000)**-0.8 - 6.5*torch.exp(-0.6*(fc/1000 - 3.3)**2) + 10**-3*(fc/1000)**4 # threshold in quiet
 
-        ref = 10*np.log10(self.fftUpperRef) - 96 # -96 is the predefined offset
+        ref = 10*torch.log10(self.fftUpperRef) - 96 # -96 is the predefined offset
         ref = 10**(ref/10) # to linear gain
 
-        qTh = 10**(qTh/10) * ref.numpy() # convert to linear gain and scale by the calculated offset
+        qTh = 10**(qTh/10) * ref # convert to linear gain and scale by the calculated offset
 
         # get weighting curve for given bin centre frequencies
         if self.wp == "r468":
@@ -691,21 +692,26 @@ class PerceptuallyWeightedComplexLoss(torch.nn.Module):
         elif self.wp == "cw":
             w = self.cw(fc)
         elif self.wp == None:
-            w = np.ones_like(fc) # if no weighting desired then all weights are 1
+            w = torch.ones_like(fc) # if no weighting desired then all weights are 1
 
+        self.window = self.window.to(x.device)
         x_mag, x_phase = self.stft(x.view(-1, x.size(-1)))
         y_mag, y_phase = self.stft(y.view(-1, x.size(-1)))
 
         phase_dif = x_phase - y_phase
-        phase_dif = (phase_dif + np.pi) % (2 * np.pi) - np.pi # wrap difference to [-pi, pi]
+        phase_dif = (phase_dif + torch.pi) % (2 * torch.pi) - torch.pi # wrap difference to [-pi, pi]
 
-        euDif = np.sqrt(y_mag.double() ** 2 + x_mag.double() ** 2 - 2 * y_mag.double() * x_mag.double() * np.cos(phase_dif.double())) # precision added to avoid nan with float32
-        w = w.reshape(1, len(w), 1) 
-        qTh = qTh.reshape(1, len(qTh), 1) # sure up axes to allow broadcast in next line
-        euDif = (euDif * w / ((x_mag + y_mag + abs(x_mag - y_mag)) + qTh))**2 # euclidean distance gets weighted by w and normalised by magnitude. qTh works as eps
+        # [w, qTh] = [torch.tensor(i) for i in [w, qTh]] # convert weight and threshold in quiet to tensors
+        [w, qTh, x_mag, y_mag, phase_dif] = [torch.double(i) for i in [w, qTh, x_mag, y_mag, phase_dif]] # convert to double to avoid NaN due to precision
+        euDif = torch.sqrt(y_mag ** 2 + x_mag ** 2 - 2 * y_mag * x_mag * torch.cos(phase_dif)) # precision added to avoid nan with float32
+        w = w.reshape(1, len(w), 1) # sure up axes to allow broadcast
+        qTh = qTh.reshape(1, len(qTh), 1) 
+        euDif = (euDif * w / ((x_mag + y_mag + (x_mag - y_mag).abs()) + qTh))**2 # euclidean distance gets weighted by w and normalised by magnitude. qTh works as eps
+        euDif = float(euDif) # convert back to float from double
 
-        melSumWeight = 519 / (140 * (1 + fc / 700) * np.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
-        melSumWeight = melSumWeight.reshape(1, len(melSumWeight), 1) # sure up axes to allow broadcast in next line
+        melSumWeight = 519 / (140 * (1 + fc / 700) * torch.log(10)) # derrivative of mel frequency curve can be used as compensatory weigting function for summing/averaging across bins
+        melSumWeight = melSumWeight.reshape(1, len(melSumWeight), 1) # sure up axes to allow broadcast
+        melSumWeight = torch.tensor(melSumWeight)
 
         rowMean = (euDif * melSumWeight).mean(axis=[1, 2]) # mean over bins and frames
         #TODO add if reduction is none, return rowMean

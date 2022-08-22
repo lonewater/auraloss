@@ -173,18 +173,26 @@ class FIRFilter(torch.nn.Module):
                 from .plotting import compare_freqDom_filters
                 compare_freqDom_filters(fc, r468, taps, fs=fs)  
 
-    def forward(self, input, target):
+    def forward(self, input, target=None):
         """Calculate forward propagation.
         Args:
             input (Tensor): Predicted signal (B, #channels, #samples).
-            target (Tensor): Groundtruth signal (B, #channels, #samples).
+            target (Tensor)(optional): Groundtruth signal (B, #channels, #samples).
         Returns:
             Tensor: Filtered signal.
         """
-        input = torch.nn.functional.conv1d(
-            input, self.fir.weight.data, padding=self.ntaps // 2
-        )
-        target = torch.nn.functional.conv1d(
-            target, self.fir.weight.data, padding=self.ntaps // 2
-        )
-        return input, target
+
+        if target is not None:
+            input = torch.nn.functional.conv1d(
+                input, self.fir.weight.data, padding=self.ntaps // 2
+            )
+
+            target = torch.nn.functional.conv1d(
+                target, self.fir.weight.data, padding=self.ntaps // 2
+            )
+            return input, target
+        else:
+            input = torch.nn.functional.conv1d(
+                input, self.fir.weight.data, padding=self.ntaps // 2
+            )
+            return input,

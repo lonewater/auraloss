@@ -209,6 +209,6 @@ class FIRFilter(torch.nn.Module):
             return input, target
         else:
             input = torch.nn.functional.conv1d(
-                input, self.fir.weight.data, padding=self.ntaps // 2
+                input, self.fir.weight.data, padding=self.ntaps // 2, groups=input.size()[1]
             )
             return input,

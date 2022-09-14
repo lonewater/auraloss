@@ -106,7 +106,9 @@ class FIRFilter(torch.nn.Module):
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
-                taps = scipy.signal.firls(ntaps, w_iir, 1 / abs(h_iir), fs=fs)
+                h_iir = 1/abs(h_iir)
+                h_iir[0] = 0 # corrects div by 0 value
+                taps = scipy.signal.firls(ntaps, w_iir, h_iir, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, w_iir, abs(h_iir), fs=fs)
 
@@ -134,7 +136,9 @@ class FIRFilter(torch.nn.Module):
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
-                taps = scipy.signal.firls(ntaps, fc, 1/c, fs=fs)
+                c = 1/c
+                c[0] = 0 # corrects div by 0 value
+                taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
 
@@ -173,7 +177,7 @@ class FIRFilter(torch.nn.Module):
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
                 r468 = 1/r468
-                r468[0] = 0 # avoids 1/0 issue
+                r468[0] = 0 # corrects div by 0 value
                 taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
@@ -199,7 +203,7 @@ class FIRFilter(torch.nn.Module):
         """
         # tile weight.data to be same number of channels as input data
         self.fir.weight.data = torch.tile(self.fir.weight.data, (1, input.size()[1], 1))
-        
+
         if target is not None:
             input = torch.nn.functional.conv1d(
                 input, self.fir.weight.data, padding=self.ntaps // 2

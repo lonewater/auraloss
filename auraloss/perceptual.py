@@ -120,8 +120,10 @@ class FIRFilter(torch.nn.Module):
             self.fir.weight.data = torch.tensor(taps.astype("float32")).view(1, 1, -1)
 
             if plot:
-                from .plotting import compare_filters
-                compare_filters(b, a, taps, fs=fs)
+                from .plotting import compare_filters, compare_freqDom_filters
+                # compare_filters(b, a, taps, fs=fs)
+                compare_freqDom_filters(w_iir, h_iir, taps, fs=fs)
+
         elif filter_type == "cw":
             fft_size = 2**12 # define a big fft for ideal freq domain representation
             fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs

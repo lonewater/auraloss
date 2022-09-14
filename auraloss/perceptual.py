@@ -172,7 +172,9 @@ class FIRFilter(torch.nn.Module):
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
-                taps = scipy.signal.firls(ntaps, fc, 1/r468, fs=fs)
+                r468 = 1/r468
+                r468[0] = 0 # avoids 1/0 issue
+                taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
 

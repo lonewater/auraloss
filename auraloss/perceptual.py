@@ -44,6 +44,7 @@ class FIRFilter(torch.nn.Module):
         coef (float): Coefficient value for the filter tap (only applicable for "hp" and "fd"). Default: 0.85
         ntaps (int): Number of FIR filter taps for constructing A-weighting filters. Default: 101
         plot (bool): Plot the magnitude respond of the filter. Default: False
+        inverse (bool): Return the reciprocal of the filter response for the sake of de-emphasis
 
     Based upon the perceptual loss pre-empahsis filters proposed by
     [Wright & Välimäki, 2019](https://arxiv.org/abs/1911.08922).
@@ -58,7 +59,7 @@ class FIRFilter(torch.nn.Module):
     a sampling rate of 44.1 kHz, considering adjusting this value at differnt sampling rates.
     """
 
-    def __init__(self, filter_type="hp", coef=0.85, fs=44100, ntaps=101, plot=False):
+    def __init__(self, filter_type="hp", coef=0.85, fs=44100, ntaps=101, plot=False, inverse=False):
         """Initilize FIR pre-emphasis filtering module."""
         super(FIRFilter, self).__init__()
         self.filter_type = filter_type
@@ -66,6 +67,7 @@ class FIRFilter(torch.nn.Module):
         self.fs = fs
         self.ntaps = ntaps
         self.plot = plot
+        self.inverse = inverse
 
         if ntaps % 2 == 0:
             raise ValueError(f"ntaps must be odd (ntaps={ntaps}).")
@@ -102,7 +104,11 @@ class FIRFilter(torch.nn.Module):
             w_iir, h_iir = scipy.signal.freqz(b, a, worN=512, fs=fs)
 
             # then we fit to 101 tap FIR filter with least squares
-            taps = scipy.signal.firls(ntaps, w_iir, abs(h_iir), fs=fs)
+            # use the reciprocal of the magnitude response if inverse filter required
+            if inverse == True:
+                taps = scipy.signal.firls(ntaps, w_iir, 1 / abs(h_iir), fs=fs)
+            else:
+                taps = scipy.signal.firls(ntaps, w_iir, abs(h_iir), fs=fs)
 
             # now implement this digital FIR filter as a Conv1d layer
             self.fir = torch.nn.Conv1d(
@@ -126,7 +132,11 @@ class FIRFilter(torch.nn.Module):
             c = Rc / Rc1000 # c is our filter mag values per bin frequency
             
             # then we fit to 101 tap FIR filter with least squares
-            taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
+            # use the reciprocal of the magnitude response if inverse filter required
+            if inverse == True:
+                taps = scipy.signal.firls(ntaps, fc, 1/c, fs=fs)
+            else:
+                taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
 
             # now implement this digital FIR filter as a Conv1d layer
             self.fir = torch.nn.Conv1d(
@@ -160,7 +170,11 @@ class FIRFilter(torch.nn.Module):
             r468 = (0.0001246332637532143 * f1) / np.sqrt(h1**2 + h2**2) * factor_gain_1kHz # r468 is our filter mag values per bin frequency
 
             # then we fit to 101 tap FIR filter with least squares
-            taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
+            # use the reciprocal of the magnitude response if inverse filter required
+            if inverse == True:
+                taps = scipy.signal.firls(ntaps, fc, 1/r468, fs=fs)
+            else:
+                taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
 
             # now implement this digital FIR filter as a Conv1d layer
             self.fir = torch.nn.Conv1d(

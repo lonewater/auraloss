@@ -198,8 +198,8 @@ class FIRFilter(torch.nn.Module):
             Tensor: Filtered signal.
         """
         # tile weight.data to be same number of channels as input data
-        self.fir.weight.data = torch.reshape(self.fir.weight.data, (self.fir.weight.data.size()[0], input.size()[1], self.fir.weight.data.size()[2]))
-
+        self.fir.weight.data = torch.tile(self.fir.weight.data, (1, input.size()[1], 1))
+        
         if target is not None:
             input = torch.nn.functional.conv1d(
                 input, self.fir.weight.data, padding=self.ntaps // 2

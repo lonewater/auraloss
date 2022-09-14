@@ -108,7 +108,8 @@ class FIRFilter(torch.nn.Module):
             if inverse == True:
                 h_iir = 1/abs(h_iir)
                 h_iir[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, w_iir, h_iir, fs=fs)
+                # taps = scipy.signal.firls(ntaps, w_iir, h_iir, fs=fs)
+                taps = scipy.signal.firwin2(ntaps, w_iir, h_iir, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, w_iir, abs(h_iir), fs=fs)
 
@@ -140,7 +141,8 @@ class FIRFilter(torch.nn.Module):
             if inverse == True:
                 c = 1/c
                 c[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
+                # taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
+                taps = scipy.signal.firwin2(ntaps, fc, c, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
 
@@ -180,7 +182,8 @@ class FIRFilter(torch.nn.Module):
             if inverse == True:
                 r468 = 1/r468
                 r468[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
+                # taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
+                taps = scipy.signal.firwin2(ntaps, fc, r468, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
 

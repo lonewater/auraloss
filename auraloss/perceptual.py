@@ -106,9 +106,12 @@ class FIRFilter(torch.nn.Module):
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
+                w = torch.ones([h_iir.size//2]) # weight vector for least squares design to reduce ripple
+                w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
+                w[3] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
                 h_iir = 1/abs(h_iir)
                 h_iir[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, w_iir, h_iir, fs=fs)
+                taps = scipy.signal.firls(ntaps, w_iir, h_iir, weight=w, fs=fs)
                 # taps = scipy.signal.firwin2(ntaps, w_iir, h_iir, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, w_iir, abs(h_iir), fs=fs)
@@ -139,9 +142,12 @@ class FIRFilter(torch.nn.Module):
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
+                w = torch.ones([c.size//2]) # weight vector for least squares design to reduce ripple
+                w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
+                w[3] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
                 c = 1/c
                 c[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, fc, c, fs=fs)
+                taps = scipy.signal.firls(ntaps, fc, c, weight=w, fs=fs)
                 # taps = scipy.signal.firwin2(ntaps, fc, c, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, c, fs=fs)

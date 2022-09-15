@@ -82,7 +82,7 @@ class FIRFilter(torch.nn.Module):
             self.fir.weight.data = torch.tensor([1, 0, -coef]).view(1, 1, -1)
         elif filter_type == "aw":
             # Definition of analog A-weighting filter according to IEC/CD 1672.
-            f1 = 20.598997
+            """f1 = 20.598997
             f2 = 107.65265
             f3 = 737.86223
             f4 = 12194.217
@@ -101,19 +101,32 @@ class FIRFilter(torch.nn.Module):
             b, a = scipy.signal.bilinear(NUMs, DENs, fs=fs)
 
             # compute the digital filter frequency response
-            w_iir, h_iir = scipy.signal.freqz(b, a, worN=2048, fs=fs)
+            w_iir, h_iir = scipy.signal.freqz(b, a, worN=2048, fs=fs, include_nyquist=False)"""
+            
+            # redoing the above removing analogue filter calulations to see if it help with creating the inverse filter
+            fft_size = 2**12 # define a big fft for ideal freq domain representation
+            fbw = (fs / 2) / (fft_size / 2) # bin width of fft_size at fs
+            fc = np.arange(0, fbw * (fft_size / 2), fbw) # centre frequencies of the bins
+
+            f2 = fc **2
+            f4 = fc **4
+
+            Ra = (12194**2 * f4) / ((f2 + 20.6**2) * (f2+12194**2) * np.sqrt((f2 + 107.7**2)*(f2+737.9**2)))
+            Ra1000 = (12194**2 * 1000**4) / ((1000**2 + 20.6**2) * np.sqrt((1000**2 + 107.7**2)*(1000**2+737.9**2)) * (1000**2+12194**2))
+            a = Ra / Ra1000
 
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
-                w = torch.ones([h_iir.size//2]) # weight vector for least squares design to reduce ripple
+                w = torch.ones([a.size//2]) # weight vector for least squares design to reduce ripple
                 w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
                 w[2] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
-                h_iir = 1/abs(h_iir)
-                h_iir[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, w_iir, h_iir, weight=w, fs=fs)
+                a = 1/a
+                a[0] = 0 # corrects div by 0 value
+                taps = scipy.signal.firls(ntaps, fc, a, weight=w, fs=fs)
+                # taps = scipy.signal.firwin2(ntaps, w_iir, h_iir, fs=fs)
             else:
-                taps = scipy.signal.firls(ntaps, w_iir, abs(h_iir), fs=fs)
+                taps = scipy.signal.firls(ntaps, fc, a, fs=fs)
 
             # now implement this digital FIR filter as a Conv1d layer
             self.fir = torch.nn.Conv1d(
@@ -125,7 +138,7 @@ class FIRFilter(torch.nn.Module):
             if plot:
                 from .plotting import compare_filters, compare_freqDom_filters
                 # compare_filters(b, a, taps, fs=fs)
-                compare_freqDom_filters(w_iir, h_iir, taps, fs=fs)
+                compare_freqDom_filters(fc, a, taps, fs=fs)
 
         elif filter_type == "cw":
             fft_size = 2**12 # define a big fft for ideal freq domain representation

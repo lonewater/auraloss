@@ -180,9 +180,12 @@ class FIRFilter(torch.nn.Module):
             # then we fit to 101 tap FIR filter with least squares
             # use the reciprocal of the magnitude response if inverse filter required
             if inverse == True:
+                w = torch.ones((r468.size()-1)/2) # weight vector for least squares design to reduce ripple
+                w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
+                w[3] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
                 r468 = 1/r468
                 r468[0] = 0 # corrects div by 0 value
-                taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)
+                taps = scipy.signal.firls(ntaps, fc, r468, weight=w, fs=fs)
                 # taps = scipy.signal.firwin2(ntaps, fc, r468, fs=fs)
             else:
                 taps = scipy.signal.firls(ntaps, fc, r468, fs=fs)

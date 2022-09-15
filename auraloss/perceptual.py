@@ -121,6 +121,7 @@ class FIRFilter(torch.nn.Module):
                 w = torch.ones([a.size//2]) # weight vector for least squares design to reduce ripple
                 w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
                 w[2] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
+                a[0] = 1 # prevent div by 0
                 a = 1/a
                 a[0] = 0 # corrects div by 0 value
                 taps = scipy.signal.firls(ntaps, fc, a, weight=w, fs=fs)
@@ -157,6 +158,7 @@ class FIRFilter(torch.nn.Module):
                 w = torch.ones([c.size//2]) # weight vector for least squares design to reduce ripple
                 w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
                 w[2] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
+                c[0] = 1 # prevent div by 0
                 c = 1/c
                 c[0] = 0 # corrects div by 0 value
                 taps = scipy.signal.firls(ntaps, fc, c, weight=w, fs=fs)
@@ -200,6 +202,7 @@ class FIRFilter(torch.nn.Module):
                 w = torch.ones([r468.size//2]) # weight vector for least squares design to reduce ripple
                 w[:2] = 0 # low freq importance is low because sharp slope in inverse filter
                 w[2] = 0.75 # smoother transition to importance = 1. These weights are arbitrary
+                r468[0] = 1 # prevent div by 0
                 r468 = 1/r468
                 r468[0] = 0 # corrects div by 0 value
                 taps = scipy.signal.firls(ntaps, fc, r468, weight=w, fs=fs)
